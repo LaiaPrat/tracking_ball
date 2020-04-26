@@ -69,6 +69,7 @@ while True:							# Comença un cicle que no para fins que no apretem la tecla Q
 		M = cv2.moments(c)
 		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))	# Obtenim el valor de les coordenades del centre
 		# only proceed if the radius meets a minimum size
+
 		if radius > 10:											# Comprobem que el radi sigui suficientment gran
 			# draw the circle and centroid on the frame,
 			# then update the list of tracked points

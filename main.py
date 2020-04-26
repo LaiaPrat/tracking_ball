@@ -11,7 +11,7 @@ from imutils.video import VideoStream
 class Tracker:
 
 	def __init__(self):
-		self.tracks = dict()  # Dicgitcionari
+		self.tracks = dict()  # Dicionari
 		self.exist = list()
 		self.new = list()
 
@@ -26,12 +26,12 @@ class Tracker:
 		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))  # Obtenim el valor de les coordenades del centre
 
 		if radius > 10:  # Comprobem que el radi sigui suficientment gran
-			cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255),
-					   2)  # Dibuixem un cercle en les corrdenades donades
+			cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)  # Dibuixem un cercle en les corrdenades donades
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)  # i un altre cercle al centre
 		# self.tracks[track_id].set_position(center)  # les coordenades donades son el centre de la pilota
-		self.tracks[track_id].track_positions.appendleft(center)
+		# self.tracks[track_id].track_positions.appendleft(center)
 		# pts.set_position(center)
+		pts.appendleft(center)
 
 		for i in range(1, len(pts)):  # Recorrem el bucle per cada un dels seus punts
 			if pts[i - 1] is None or pts[i] is None:  # Si és none vol dir que no s'ha detectat la pilota
@@ -40,7 +40,7 @@ class Tracker:
 				args["buffer"] / float(i + 1)) * 2.5)  # Si el punt es vàlid calculamrem el gruix de la linia
 			cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)  # i el dibuixem en el frame
 			cv2.putText(frame, str(track_id), center, cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 2)
-			pts.appendleft(pts[i])
+			# pts.appendleft(pts[i])
 			# self.tracks[track_id].set_position(pts[i])
 			# pts.set_position(pts[i])
 
@@ -66,12 +66,12 @@ class Track:
 	def get_id(self):
 		return self.track_id
 
-	def set_position(self, position):
-		self.track_positions.appendleft(position)
+	# def set_position(self, position):
+	# 	self.track_positions.appendleft(position)
 
 
 def tractamentIma(ima):
-	ima = imutils.resize(ima, width=600)  # Redimensionem el frame, més petit per processar més ràpid
+	# ima = imutils.resize(ima, width=600)  # Redimensionem el frame, més petit per processar més ràpid
 	blurred = cv2.GaussianBlur(ima, (11, 11), 0)  # desenfoquem per reduir el soroll
 	hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)  # passem a l'espai de color HSV
 
@@ -103,15 +103,13 @@ if __name__ == '__main__':
 		frame = frame[1] if args.get("video", False) else frame
 		if frame is None:
 			break
-		print('0')
 		mask = tractamentIma(frame)
 		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,  # Busquem els contorns de la pilota
 								cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
 		cnts = imutils.grab_contours(cnts)
-		print('1')
+		center = None
 		if len(cnts) > 0:
 			tracker.draw_track(0, cnts)
-		print('2')
 		cv2.imshow("Frame", frame)
 		key = cv2.waitKey(1) & 0xFF
 		if key == ord("q"):
