@@ -21,13 +21,10 @@ class Tracker:
 		if self.tracks.get(track_id) is None:
 			self.create_track(track_id)
 
-	def draw_track(self, track_id, contorns):
+	def draw_track(self, track_id, center, circle):
 		pts = self.tracks[track_id].track_positions
-		c = max(contorns, key=cv2.contourArea)
-		((x, y), radius) = cv2.minEnclosingCircle(c)
-		M = cv2.moments(c)
-		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))  # Obtenim el valor de les coordenades del centre
-
+		radius = circle[1]
+		(x, y) = circle[0]
 		if radius > 10:  # Comprobem que el radi sigui suficientment gran
 			cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)  # Dibuixem un cercle en les corrdenades donades
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)  # i un altre cercle al centre
@@ -55,7 +52,13 @@ class Detector:
 								cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
 		cnts = imutils.grab_contours(cnts)
 		center = None
-		detections = [cnts, center]
+		circle = None
+		if len(cnts) > 0: # Si no faig aquest if em peta si no detecta la pilota
+			c = max(cnts, key=cv2.contourArea)
+			circle = cv2.minEnclosingCircle(c) # Obtenim el cercle que despres dibuixarem
+			M = cv2.moments(c)
+			center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))  # Obtenim el valor de les coordenades del centre
+		detections = [cnts, center, circle]
 		return detections
 
 
@@ -69,8 +72,8 @@ class Track:
 
 
 def tractamentIma(ima):
-	blurred = cv2.GaussianBlur(ima, (11, 11), 0)  # desenfoquem per reduir el soroll
-	hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)  # passem a l'espai de color HSV
+	blurred = cv2.GaussianBlur(ima, (11, 11), 0)  # Desenfoquem per reduir el soroll
+	hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)  # Passem a l'espai de color HSV
 
 	mask = cv2.inRange(hsv, greenLower, greenUpper)  # Màscara binaria, per detectar la pilota
 	mask = cv2.erode(mask, None, iterations=2)  # Apliquem una erosió i una dilatació per eliminar impureses dins i fora
@@ -92,24 +95,18 @@ if __name__ == '__main__':
 		vs = VideoStream(src=0).start()
 	else:
 		vs = cv2.VideoCapture(args["video"])
-	time.sleep(2.0)	# Cal que detecti totes les pilotes d la frame, crear un track x cada una -> dins de Detector
-	tracker = Tracker()	# Com les detecto totes -> funció Detector()
-	tracker.create_track(0) 	# i despres dibuixar-les totes ->  for de Tracker
+	time.sleep(2.0)
+	tracker = Tracker()
+	tracker.create_track(0)
 	detector = Detector()
 	while (True):
 		frame = vs.read()
-		# frame = frame[1] if args.get("video", False) else frame
-		# if frame is None:
-		# 	break
-		# mask = tractamentIma(frame)
-		# cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,  # Busquem els contorns de la pilota
-		# 						cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
-		# cnts = imutils.grab_contours(cnts)
-		# center = None --> no cal
 		detections = detector.detect(frame)
 		cnts = detections[0]
+		center = detections[1]
+		circle = detections[2]
 		if len(cnts) > 0:
-			tracker.draw_track(0, cnts)
+			tracker.draw_track(0, center, circle)
 		cv2.imshow("Frame", frame)
 		key = cv2.waitKey(1) & 0xFF
 		if key == ord("q"):
