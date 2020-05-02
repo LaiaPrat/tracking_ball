@@ -1,3 +1,4 @@
+import sys
 import time
 from collections import deque
 
@@ -12,11 +13,13 @@ class Tracker:
 
 	def __init__(self):
 		self.tracks = dict()  # Dicionari
-		self.exist = list()
-		self.new = list()
 
 	def create_track(self, id):
 		self.tracks[id] = Track(id)
+
+	def check_if_track_exist(self, track_id):
+		if self.tracks.get(track_id) is None:
+			self.create_track(track_id)
 
 	def draw_track(self, track_id, contorns):
 		pts = self.tracks[track_id].track_positions
@@ -28,10 +31,7 @@ class Tracker:
 		if radius > 10:  # Comprobem que el radi sigui suficientment gran
 			cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 255), 2)  # Dibuixem un cercle en les corrdenades donades
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)  # i un altre cercle al centre
-		# self.tracks[track_id].set_position(center)  # les coordenades donades son el centre de la pilota
-		# self.tracks[track_id].track_positions.appendleft(center)
-		# pts.set_position(center)
-		pts.appendleft(center)
+		pts.appendleft(center)		# les coordenades donades son el centre de la pilota
 
 		for i in range(1, len(pts)):  # Recorrem el bucle per cada un dels seus punts
 			if pts[i - 1] is None or pts[i] is None:  # Si és none vol dir que no s'ha detectat la pilota
@@ -40,22 +40,23 @@ class Tracker:
 				args["buffer"] / float(i + 1)) * 2.5)  # Si el punt es vàlid calculamrem el gruix de la linia
 			cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)  # i el dibuixem en el frame
 			cv2.putText(frame, str(track_id), center, cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 2)
-			# pts.appendleft(pts[i])
-			# self.tracks[track_id].set_position(pts[i])
-			# pts.set_position(pts[i])
-
-	def classificate(self, track_id):  # falta
-		if self.tracks.get(track_id) == None:
-			self.create_track(track_id)
-			self.new.append(track_id)
-		else:
-			self.exist.append(track_id)
-			self.new.remove(track_id)
 
 
-# class Detector:
-# 	def __init__(self):
-#
+class Detector:
+	def __init__(self):
+		pass
+
+	def detect(self, ima):
+		ima = ima[1] if args.get("video", False) else ima
+		if ima is None:
+			sys.exit()
+		mask = tractamentIma(ima)
+		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,  # Busquem els contorns de la pilota
+								cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
+		cnts = imutils.grab_contours(cnts)
+		center = None
+		detections = [cnts, center]
+		return detections
 
 
 class Track:
@@ -66,12 +67,8 @@ class Track:
 	def get_id(self):
 		return self.track_id
 
-	# def set_position(self, position):
-	# 	self.track_positions.appendleft(position)
-
 
 def tractamentIma(ima):
-	# ima = imutils.resize(ima, width=600)  # Redimensionem el frame, més petit per processar més ràpid
 	blurred = cv2.GaussianBlur(ima, (11, 11), 0)  # desenfoquem per reduir el soroll
 	hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)  # passem a l'espai de color HSV
 
@@ -95,19 +92,22 @@ if __name__ == '__main__':
 		vs = VideoStream(src=0).start()
 	else:
 		vs = cv2.VideoCapture(args["video"])
-	time.sleep(2.0)
-	tracker = Tracker()
-	tracker.create_track(0)
+	time.sleep(2.0)	# Cal que detecti totes les pilotes d la frame, crear un track x cada una -> dins de Detector
+	tracker = Tracker()	# Com les detecto totes -> funció Detector()
+	tracker.create_track(0) 	# i despres dibuixar-les totes ->  for de Tracker
+	detector = Detector()
 	while (True):
 		frame = vs.read()
-		frame = frame[1] if args.get("video", False) else frame
-		if frame is None:
-			break
-		mask = tractamentIma(frame)
-		cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,  # Busquem els contorns de la pilota
-								cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
-		cnts = imutils.grab_contours(cnts)
-		center = None
+		# frame = frame[1] if args.get("video", False) else frame
+		# if frame is None:
+		# 	break
+		# mask = tractamentIma(frame)
+		# cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,  # Busquem els contorns de la pilota
+		# 						cv2.CHAIN_APPROX_SIMPLE)  # per poder posar el centre
+		# cnts = imutils.grab_contours(cnts)
+		# center = None --> no cal
+		detections = detector.detect(frame)
+		cnts = detections[0]
 		if len(cnts) > 0:
 			tracker.draw_track(0, cnts)
 		cv2.imshow("Frame", frame)
